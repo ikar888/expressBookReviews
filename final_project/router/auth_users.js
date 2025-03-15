@@ -45,7 +45,7 @@ regd_users.post("/login", (req,res) => {
         // Generate JWT access token
         let accessToken = jwt.sign({
             data: password
-        }, 'access', { expiresIn: 60 * 60 });
+        }, 'access', { expiresIn: 120 * 120 });
         // Store access token and username in session
         req.session.authorization = {
             accessToken, username
@@ -70,7 +70,7 @@ regd_users.put("/auth/review/:isbn", (req, res) => {
         return res.status(403).json({ message: "User not logged in" }); // Validate user's login status
     }
 
-    // Assuming `books` is your database or in-memory object to store book details and reviews
+    // Assuming `books` is your data store for book information
     if (!books[isbn]) {
         return res.status(404).json({ message: "Book with the given ISBN not found" }); // Validate book existence
     }
@@ -88,6 +88,39 @@ regd_users.put("/auth/review/:isbn", (req, res) => {
         return res.status(200).json({ message: "Review added successfully", reviews: book.reviews });
     }
 });
+
+regd_users.delete("/auth/review/:isbn", (req, res) => {
+    const isbn = req.params.isbn; // Retrieve the ISBN from the URL parameters
+    const username = req.session.authorization?.username; // Retrieve the username from the session
+
+    if (!username) {
+        return res.status(403).json({ message: "User not logged in" }); // Validate user's login status
+    }
+
+    // Assuming `books` is your data store for book information
+    if (!books[isbn]) {
+        return res.status(404).json({ message: "Book with the given ISBN not found" }); // Validate book existence
+    }
+
+    const book = books[isbn];
+    const reviews = book.reviews || {}; // Fetch the reviews for the book
+
+    if (!reviews[username]) {
+        return res.status(404).json({ message: "No review found for this user." }); // No review to delete for this user
+    }
+
+    // Delete the user's review
+    delete reviews[username];
+
+    // If no reviews are left, clean up the reviews object
+    if (Object.keys(reviews).length === 0) {
+        delete book.reviews;
+    }
+
+    return res.status(200).json({ message: "Review deleted successfully", reviews: book.reviews || {} });
+});
+
+
 
 module.exports.authenticated = regd_users;
 module.exports.isValid = isValid;
